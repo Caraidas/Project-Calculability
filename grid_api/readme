@@ -53,7 +53,6 @@ live, and it's printed on the terminal at startup.
 | GET | `/agents/{name}` | – | that agent's pose and total weight |
 | GET | `/directions` | – | valid direction names and their row/col deltas |
 | POST | `/agents/{name}/move/{direction}` | – (in the URL) | move one step: `N S E W NE NW SE SW` |
-| POST | `/agents/{name}/move` | `{to: [r, c]}` | move one step, to an absolute adjacent node |
 | GET | `/viz/grid` | – | text view of the last state |
 | GET | `/viz/graph` | – | PNG view of the last state (needs matplotlib) |
 | GET | `/health` | – | liveness check |
@@ -64,8 +63,9 @@ on several nodes at once.
 
 A move costs `edge_weight(u,v) × obstacle_weight(v)`. Edge weight is fixed at grid
 creation: 1 orthogonal, 1.5 diagonal (connectivity 8 only). `move/{direction}` is the
-simplest way to move by hand; `move` with `{"to": [r,c]}` stays available for anything
-that computes an absolute target.
+simplest way to move by hand;
+
+> Example: `curl -s -X POST localhost:8000/agents/robot/move/E`
 
 The mission succeeds when the agent's pose equals the target. It fails — and is
 cancelled — the moment the agent's total weight *reaches* the threshold, checked
