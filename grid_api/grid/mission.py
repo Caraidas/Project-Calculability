@@ -11,6 +11,10 @@ class Agent:
     name: str
     pose: Pose
     total_weight: float = 0.0
+    steps: int = 0
+
+    def reset(self, pose: Pose) -> None:
+        self.pose, self.total_weight, self.steps = pose, 0.0, 0
 
 
 @dataclass

@@ -37,7 +37,7 @@ class Grid:
         self.n = n
         self.connectivity = connectivity
         self.G = nx.Graph()
-        self.agents: dict[str, Agent] = {}
+        self.agents: dict[str, Agent] = dict()
         self.mission: Optional[Mission] = None
         self._build()
 
@@ -153,7 +153,7 @@ class Grid:
         if not threshold > 0:
             raise InvalidConfig("threshold must be > 0")
         for a in self.agents.values():
-            a.pose, a.total_weight = start, 0.0
+            a.reset(start)
         self.mission = Mission(agent, start, target, float(threshold))
 
     def mission_weight(self) -> float:
@@ -172,6 +172,7 @@ class Grid:
         cost = self.traversal_cost(agent.pose, to)
         agent.pose = to
         agent.total_weight += cost
+        agent.steps += 1
         m = self.mission
         if m is not None and name == m.agent:
             if agent.total_weight >= m.threshold:   # threshold first: reaching it cancels the mission
@@ -198,24 +199,29 @@ class Grid:
         a = self.agents[m.agent]
         w, t = f"{a.total_weight:g}", f"{m.threshold:g}"
         if m.status == SUCCESS:
-            return f"Mission accomplished: {a.name} reached {_fmt(m.target)} with a total weight of {w}."
+            return (f"Mission accomplished: {a.name} reached {_fmt(m.target)} "
+                    f"with a total weight of {w} in {a.steps} steps.")
         if m.status == FAILED:
             return (f"Mission failed: total weight {w} reached the threshold {t} "
-                    f"before {a.name} reached {_fmt(m.target)}.")
-        return f"Mission running: {a.name} at {_fmt(a.pose)}, total weight {w} / threshold {t}."
+                    f"before {a.name} reached {_fmt(m.target)} ({a.steps} steps).")
+        return (f"Mission running: {a.name} at {_fmt(a.pose)}, "
+                f"total weight {w} / threshold {t}, {a.steps} steps.")
 
     def mission_summary(self) -> Optional[dict]:
         m = self.mission
         if m is None:
             return None
+        a = self.agents[m.agent]
         return {"agent": m.agent, "start": list(m.start), "target": list(m.target),
                 "threshold": m.threshold, "status": m.status,
-                "total_weight": self.mission_weight(), "message": self.mission_message()}
+                "total_weight": a.total_weight, "steps": a.steps,
+                "message": self.mission_message()}
 
     def state(self) -> dict:
         return {"size": self.n, "connectivity": self.connectivity,
-                "agents": [{"name": a.name, "pose": list(a.pose), "total_weight": a.total_weight}
-                           for a in self.agents.values()],
+                "agents": [{"name": a.name, "pose": list(a.pose),
+                            "total_weight": a.total_weight, "steps": a.steps}
+                            for a in self.agents.values()],
                 "obstacles": self.obstacles(),
                 "mission": self.mission_summary()}
 

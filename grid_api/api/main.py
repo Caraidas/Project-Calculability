@@ -145,7 +145,8 @@ def distance(r1: int, c1: int, r2: int, c2: int, metric: str = "manhattan"):
 @app.get("/agents/{name}")
 def agent(name: str):
     a = _get()._agent(name)
-    return {"name": a.name, "pose": list(a.pose), "total_weight": a.total_weight}
+    return {"name": a.name, "pose": list(a.pose),
+            "total_weight": a.total_weight, "steps": a.steps}
 
 
 @app.post("/agents/{name}/move")
