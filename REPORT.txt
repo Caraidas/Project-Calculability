@@ -1,0 +1,4 @@
+les résultats obtenus : 
+dijkstra 11 poids 8depl 
+DFS 25.5 poids, 13depl  
+BFS & GREEDY-SEARCH 7 depl 43.5 poids 
