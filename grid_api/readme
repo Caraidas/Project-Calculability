@@ -1,0 +1,82 @@
+# grid_api
+
+A discrete N×N grid (agents, obstacles, one mission), held as a networkx graph and
+exposed over a local-only HTTP API. No internet access needed at runtime.
+
+## Run it
+
+**Local dev (fastest iteration, no container):**
+```
+../launch.sh                          # venv in .venv/, install, run on :8000
+GRID_PORT=9000 ../launch.sh           # different port
+GRID_CONFIG=config/other.json ../launch.sh   # different starting scenario
+../launch.sh --with-viz               # also installs matplotlib, for GET /viz/graph
+```
+Rebuilds nothing — edits to the code are live on the next request. Use this while
+iterating; use the container to actually deploy or share the system.
+
+**Container (podman):**
+```
+podman build -t grid-api -f Containerfile .                       # without matplotlib
+podman build -t grid-api-viz --build-arg WITH_VIZ=1 -f Containerfile .   # with it
+
+podman run --rm -p 8000:8000 grid-api
+podman run --rm -p 8000:8000 grid-api-viz
+```
+`-p 8000:8000` publishes the container's port on `localhost:8000` — every command
+below works unchanged from your own terminal, no `podman exec` needed.
+
+| Setting | Where | Default | Effect |
+|---|---|---|---|
+| port | `-p <host>:8000` (podman) / `GRID_PORT` (launch.sh) | `8000` | which host port the API listens on |
+| starting scenario | `GRID_CONFIG` env var | `config/default.json` | JSON file auto-loaded at startup, if present |
+| matplotlib | `--with-viz` (launch.sh) / `WITH_VIZ=1` (podman build arg) | off | needed only for `GET /viz/graph` |
+
+If the config file exists at startup, the grid initializes automatically — `GET /state`
+right after start already shows a running mission. If not, `POST /init` creates one.
+
+## API commands
+
+All bodies are JSON; unknown fields are rejected. `GET /help` serves this same list
+live, and it's printed on the terminal at startup.
+
+| Method | Path | Send | Does |
+|---|---|---|---|
+| GET | `/help` | – | this list |
+| POST | `/init` | `{size, connectivity, agents, obstacles, mission}` | (re)create the grid |
+| GET | `/state` | – | agents, obstacles, mission — everything |
+| GET | `/mission` | – | mission status and total weight |
+| POST | `/mission` | `{start, target, threshold, agent?}` | new mission, same grid (agents reset to start, weights to 0) |
+| POST | `/obstacles` | `{obstacles: [{node, weight}, ...]}` | set obstacle weights, one node → one weight |
+| GET | `/nodes/{r}/{c}/neighbors` | – | adjacent nodes with edge weight, obstacle weight, move cost |
+| GET | `/distance` | query: `r1,c1,r2,c2,metric` | geometric distance (manhattan / euclidean / chebyshev) |
+| GET | `/agents/{name}` | – | that agent's pose and total weight |
+| GET | `/directions` | – | valid direction names and their row/col deltas |
+| POST | `/agents/{name}/move/{direction}` | – (in the URL) | move one step: `N S E W NE NW SE SW` |
+| GET | `/viz/grid` | – | text view of the last state |
+| GET | `/viz/graph` | – | PNG view of the last state (needs matplotlib) |
+| GET | `/health` | – | liveness check |
+
+`size` int ≥ 1 · `connectivity` 4 or 8 · a node is `[row, col]`, 0-based · obstacle
+weight is an int > 1 (1 is "no obstacle") · one obstacle call can set the same weight
+on several nodes at once.
+
+A move costs `edge_weight(u,v) × obstacle_weight(v)`. Edge weight is fixed at grid
+creation: 1 orthogonal, 1.5 diagonal (connectivity 8 only). `move/{direction}` is the
+simplest way to move by hand;
+
+> Example: `curl -s -X POST localhost:8000/agents/robot/move/E`
+
+The mission succeeds when the agent's pose equals the target. It fails — and is
+cancelled — the moment the agent's total weight *reaches* the threshold, checked
+before the target check. Once finished, only `POST /init` and `POST /mission` are
+accepted; every other write is refused with a clean `{"error": "..."}`.
+
+## Tests
+
+```
+pip install -r requirements-dev.txt
+python -m pytest tests/ -v
+```
+39 tests: grid logic (adjacency, obstacle validation, directions, threshold-before-
+target, mission reset) and the API end-to-end via `TestClient`.
