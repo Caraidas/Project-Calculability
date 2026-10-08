@@ -61,6 +61,13 @@ def distance(case, cible, metrique):
     rep = appel("GET", f"/distance?r1={case[0]}&c1={case[1]}&r2={cible[0]}&c2={cible[1]}&metric={metrique}")
     return rep["distance"]
 
+def get_state():
+    return appel("GET", "/state")
+
+def get_neighbors(case):
+    """Voisins accessibles d'une case, avec le coût de déplacement, d'après l'API."""
+    return appel("GET", f"/nodes/{case[0]}/{case[1]}/neighbors")
+
 def direction(case, voisin):
     for d, (dr, dc) in DIRECTIONS.items():
         if (case[0] + dr, case[1] + dc) == voisin:
@@ -75,7 +82,7 @@ def astar(depart, cible, metrique):
         _, case = heapq.heappop(file)
         if case == cible:
             break
-        for v in appel("GET", f"/nodes/{case[0]}/{case[1]}/neighbors"):
+        for v in get_neighbors(case):
             voisin = tuple(v["node"])
             cout = couts[case] + v["cost"]
             if voisin not in couts or cout < couts[voisin]:
@@ -83,6 +90,76 @@ def astar(depart, cible, metrique):
                 parents[voisin] = (case, direction(case, voisin))
                 heapq.heappush(file, (cout + distance(voisin, cible, metrique), voisin))
     return reconstruire(parents, cible)
+
+
+def greedy(start, target, metric="euclidean"):
+    frontier = []
+    visited = set()
+    parent = {
+        start: None
+    }
+    h_start = distance(start, target, metric)
+    heapq.heappush(
+        frontier,
+        (h_start, start)
+    )
+    while frontier:
+        h, current = heapq.heappop(frontier)
+        if current in visited:
+            continue
+        visited.add(current)
+        print("Exploration :", current, "| h =", round(h, 2)
+        )
+        if current == target:
+            print("Cible trouvée !")
+            return parent
+        neighbors = get_neighbors(current)
+        for neighbor_data in neighbors:
+            neighbor = tuple(neighbor_data["node"])
+            if neighbor not in visited:
+                h_neighbor = distance(
+                    neighbor,
+                    target,
+                    metric
+                )
+                heapq.heappush(
+                    frontier,
+                    (h_neighbor, neighbor)
+                )
+                if neighbor not in parent:
+                    parent[neighbor] = current
+    return None
+
+def reconstruct_path(parent, target):
+
+    if parent is None:
+        return None
+    if target not in parent:
+        return None
+    path = []
+    current = target
+    while current is not None:
+        path.append(current)
+        current = parent[current]
+    path.reverse()
+    return path
+
+def path_cost(path):
+
+    total_cost = 0
+    for i in range(len(path) - 1):
+        current = path[i]
+        next_node = path[i + 1]
+        neighbors = get_neighbors(current)
+        for neighbor_data in neighbors:
+            neighbor = tuple(neighbor_data["node"])
+            if neighbor == next_node:
+                cost = neighbor_data["cost"]
+                total_cost += cost
+                print(current, "->", next_node,"| coût =", cost
+                )
+                break
+    return total_cost
 
 def reconstruire(parents, cible):
     """Remonte de la cible au départ pour obtenir la liste des directions."""
@@ -95,13 +172,56 @@ def reconstruire(parents, cible):
 
 if __name__ == "__main__":
     algo = sys.argv[1] if len(sys.argv) > 1 else "bfs"
+    if algo == "greedy":
+        state = get_state()
+        start = tuple(
+            state["mission"]["start"]
+        )
+        target = tuple(
+            state["mission"]["target"]
+        )
+        print("Départ :", start)
+        print("Cible  :", target)
+        print("\nRecherche")
+
+        parent = greedy(
+            start,
+            target
+        )
+        # Correction : reconstruct_path ne prend que (parent, target)
+        path = reconstruct_path(
+            parent,
+            target
+        )
+        print("RÉSULTAT")
+        if path is None:
+            print("Aucun chemin trouvé.")
+
+        else:
+            print("Chemin trouvé :")
+            for node in path:
+                print(node)
+            print(
+                "\nNombre de déplacements :",
+                len(path) - 1
+            )
+            print("\nCoûts")
+            total_cost = path_cost(path)
+            print(
+                "\nPoids total du chemin :",
+                total_cost
+            )
+            print(
+                "\nNombre de déplacements :",
+                len(path) - 1
+            )
+        sys.exit()
 
     etat = appel("GET", "/state")
     m = etat["mission"]
     appel("POST", "/mission", {"start": m["start"], "target": m["target"],
                                "threshold": m["threshold"], "agent": m["agent"]})
     directions = list(DIRECTIONS) if etat["connectivity"] == 8 else ["N", "S", "E", "W"]
-
     if algo == "astar":
         metrique = "euclidean" if etat["connectivity"] == 8 else "manhattan"
         chemin = astar(tuple(m["start"]), tuple(m["target"]), metrique)
