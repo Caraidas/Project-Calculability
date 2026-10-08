@@ -161,6 +161,25 @@ def path_cost(path):
                 break
     return total_cost
 
+def dijkstra(start, target):
+    distances = {start: 0}
+    parents = {start: None}
+    queue = [(0, start)]
+    while queue:
+        current_cost, current_node = heapq.heappop(queue)
+        if current_node == target:
+            break
+        neighbors = get_neighbors(current_node)
+        for neighbor in neighbors:
+            next_node = tuple(neighbor["node"])
+            move_cost = neighbor["cost"]
+            new_cost = current_cost + move_cost
+            if next_node not in distances or new_cost < distances[next_node]:
+                distances[next_node] = new_cost
+                parents[next_node] = current_node
+                heapq.heappush(queue, (new_cost, next_node))
+    return parents, distances
+
 def reconstruire(parents, cible):
     """Remonte de la cible au départ pour obtenir la liste des directions."""
     chemin, case = [], cible
@@ -188,7 +207,6 @@ if __name__ == "__main__":
             start,
             target
         )
-        # Correction : reconstruct_path ne prend que (parent, target)
         path = reconstruct_path(
             parent,
             target
@@ -225,6 +243,17 @@ if __name__ == "__main__":
     if algo == "astar":
         metrique = "euclidean" if etat["connectivity"] == 8 else "manhattan"
         chemin = astar(tuple(m["start"]), tuple(m["target"]), metrique)
+    elif algo == "dijkstra":
+        start, target = tuple(m["start"]), tuple(m["target"])
+        print("Start:", start)
+        print("Target:", target)
+        parents, distances = dijkstra(start, target)
+        path = reconstruct_path(parents, target)
+        print("\nOptimal path:", path)
+        print("Number of steps:", len(path) - 1)
+        print("Total cost:", distances[target])
+        # Conversion du chemin (liste de cases) en directions pour la boucle de déplacement commune
+        chemin = [direction(path[i], path[i + 1]) for i in range(len(path) - 1)]
     else:
         chercher = bfs if algo == "bfs" else dfs
         chemin = chercher(tuple(m["start"]), tuple(m["target"]), etat["size"], directions)
