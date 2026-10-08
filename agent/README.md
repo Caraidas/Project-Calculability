@@ -1,11 +1,12 @@
-# Agent BFS / DFS pour grid-api
+# Agent
 
-Calcule un chemin avec BFS ou DFS, affiche les déplacements, puis les envoie à l'API
-(`localhost:8000`). Bibliothèque standard Python uniquement.
+Le robot cherche un chemin jusqu'à la cible avec BFS, DFS ou A*, puis se déplace
+case par case en appelant l'API (il faut que le serveur tourne sur le port 8000).
 
 ```
 python agent.py bfs
 python agent.py dfs
+python agent.py astar
 ```
 
-Chaque lancement remet la mission à zéro avant de bouger le robot.
+La mission est remise à zéro à chaque lancement.

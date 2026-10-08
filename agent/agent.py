@@ -1,3 +1,4 @@
+import heapq
 import json
 import sys
 import urllib.request
@@ -5,7 +6,6 @@ from collections import deque
 
 API = "http://localhost:8000"
 
-# Directions de l'API : (décalage ligne, décalage colonne). N = vers le haut.
 DIRECTIONS = {"N": (-1, 0), "S": (1, 0), "E": (0, 1), "W": (0, -1),
               "NE": (-1, 1), "NW": (-1, -1), "SE": (1, 1), "SW": (1, -1)}
 
@@ -56,8 +56,36 @@ def dfs(depart, cible, taille, directions):
     return reconstruire(parents, cible)
 
 
+def distance(case, cible, metrique):
+    rep = appel("GET", f"/distance?r1={case[0]}&c1={case[1]}&r2={cible[0]}&c2={cible[1]}&metric={metrique}")
+    return rep["distance"]
+
+
+def direction(case, voisin):
+    for d, (dr, dc) in DIRECTIONS.items():
+        if (case[0] + dr, case[1] + dc) == voisin:
+            return d
+
+
+def astar(depart, cible, metrique):
+    parents = {depart: None}
+    couts = {depart: 0}
+    file = [(0, depart)]
+    while file:
+        _, case = heapq.heappop(file)
+        if case == cible:
+            break
+        for v in appel("GET", f"/nodes/{case[0]}/{case[1]}/neighbors"):
+            voisin = tuple(v["node"])
+            cout = couts[case] + v["cost"]
+            if voisin not in couts or cout < couts[voisin]:
+                couts[voisin] = cout
+                parents[voisin] = (case, direction(case, voisin))
+                heapq.heappush(file, (cout + distance(voisin, cible, metrique), voisin))
+    return reconstruire(parents, cible)
+
+
 def reconstruire(parents, cible):
-    """Remonte de la cible au départ pour obtenir la liste des directions."""
     chemin, case = [], cible
     while parents[case] is not None:
         case, d = parents[case]
@@ -74,8 +102,12 @@ if __name__ == "__main__":
                                "threshold": m["threshold"], "agent": m["agent"]})
     directions = list(DIRECTIONS) if etat["connectivity"] == 8 else ["N", "S", "E", "W"]
 
-    chercher = bfs if algo == "bfs" else dfs
-    chemin = chercher(tuple(m["start"]), tuple(m["target"]), etat["size"], directions)
+    if algo == "astar":
+        metrique = "euclidean" if etat["connectivity"] == 8 else "manhattan"
+        chemin = astar(tuple(m["start"]), tuple(m["target"]), metrique)
+    else:
+        chercher = bfs if algo == "bfs" else dfs
+        chemin = chercher(tuple(m["start"]), tuple(m["target"]), etat["size"], directions)
     print(f"{algo.upper()} : {len(chemin)} déplacements -> {' '.join(chemin)}")
 
     for d in chemin:
