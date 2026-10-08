@@ -57,7 +57,6 @@ def dfs(depart, cible, taille, directions):
 
 
 def reconstruire(parents, cible):
-    """Remonte de la cible au départ pour obtenir la liste des directions."""
     chemin, case = [], cible
     while parents[case] is not None:
         case, d = parents[case]
@@ -69,6 +68,7 @@ if __name__ == "__main__":
     algo = sys.argv[1] if len(sys.argv) > 1 else "bfs"
 
     etat = appel("GET", "/state")
+    #print(etat)
     m = etat["mission"]
     appel("POST", "/mission", {"start": m["start"], "target": m["target"],
                                "threshold": m["threshold"], "agent": m["agent"]})
