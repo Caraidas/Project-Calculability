@@ -73,24 +73,38 @@ def direction(case, voisin):
             return d
 
 
-def astar(depart, cible, metrique):
+
+def astar(depart, cible, metrique="euclidean", poids=1):
     parents = {depart: None}
     couts = {depart: 0}
     file = [(0, depart)]
+
     while file:
         priorite, case = heapq.heappop(file)
-        if priorite > couts[case] + distance(case, cible, metrique) + 0.000001 and case != depart:
+
+        # Ignorer les anciennes priorités
+        attendu = couts[case] + poids * distance(case, cible, metrique)
+        if case != depart and priorite > attendu + 0.000001:
             continue
+
         if case == cible:
             break
+
         for v in get_neighbors(case):
             voisin = tuple(v["node"])
-            cout = couts[case] + v["cost"]
-            if voisin not in couts or cout < couts[voisin]:
-                couts[voisin] = cout
+            nouveau_cout = couts[case] + v["cost"]
+
+            if voisin not in couts or nouveau_cout < couts[voisin]:
+                couts[voisin] = nouveau_cout
                 parents[voisin] = (case, direction(case, voisin))
-                heapq.heappush(file, (cout + distance(voisin, cible, metrique), voisin))
+
+                h = distance(voisin, cible, metrique)
+                f = nouveau_cout + poids * h
+
+                heapq.heappush(file, (f, voisin))
+
     return reconstruire(parents, cible)
+
 
 
 def greedy(start, target, metric="euclidean"):
