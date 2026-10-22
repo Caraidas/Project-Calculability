@@ -74,12 +74,14 @@ def direction(case, voisin):
             return d
 
 
-def astar(depart, cible, metrique):
+def astar(depart, cible, metrique, w=1):
     parents = {depart: None}
     couts = {depart: 0}
     file = [(0, depart)]
     while file:
-        _, case = heapq.heappop(file)
+        priorite, case = heapq.heappop(file)
+        if priorite > couts[case] + w * distance(case, cible, metrique) + 0.000001 and case != depart:
+            continue
         if case == cible:
             break
         for v in get_neighbors(case):
@@ -88,7 +90,7 @@ def astar(depart, cible, metrique):
             if voisin not in couts or cout < couts[voisin]:
                 couts[voisin] = cout
                 parents[voisin] = (case, direction(case, voisin))
-                heapq.heappush(file, (cout + distance(voisin, cible, metrique), voisin))
+                heapq.heappush(file, (cout + w * distance(voisin, cible, metrique), voisin))
     return reconstruire(parents, cible)
 
 
