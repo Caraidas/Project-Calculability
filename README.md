@@ -13,3 +13,9 @@ python agent.py dfs
 python agent.py astar
 python agent.py greedy
 python agent.py dijkstra
+
+# Utilisation de la config de test
+
+appeler la fonction creer_test depuis config_tests.py
+Le premier paramètre correspond à la taille de la grid, le deuxième à la connectivité, le troisième à la forme et le quatrième à l'épaisseur qui est 1.
+les formes: mettre "u" pour un obstacle en u, "ligne" pour l'obstacle en forme de ligne et ne pas mettre de paramètre dans le cas de vide.
