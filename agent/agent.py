@@ -74,58 +74,62 @@ def direction(case, voisin):
             return d
 
 
-def astar(depart, cible, metrique):
+def astar(depart, cible, metrique="euclidean", poids=1):
     parents = {depart: None}
     couts = {depart: 0}
     file = [(0, depart)]
+
     while file:
-        _, case = heapq.heappop(file)
+        priorite, case = heapq.heappop(file)
+
+        attendu = couts[case] + poids * distance(case, cible, metrique)
+        if case != depart and priorite > attendu + 0.000001:
+            continue
+
         if case == cible:
             break
+
         for v in get_neighbors(case):
             voisin = tuple(v["node"])
-            cout = couts[case] + v["cost"]
-            if voisin not in couts or cout < couts[voisin]:
-                couts[voisin] = cout
+            nouveau_cout = couts[case] + v["cost"]
+
+            if voisin not in couts or nouveau_cout < couts[voisin]:
+                couts[voisin] = nouveau_cout
                 parents[voisin] = (case, direction(case, voisin))
-                heapq.heappush(file, (cout + distance(voisin, cible, metrique), voisin))
+
+                h = distance(voisin, cible, metrique)
+                f = nouveau_cout + poids * h
+
+                heapq.heappush(file, (f, voisin))
+
     return reconstruire(parents, cible)
 
 
 def greedy(start, target, metric="euclidean"):
     frontier = []
     visited = set()
-    parent = {
-        start: None
-    }
+    parent = {start: None}
     h_start = distance(start, target, metric)
-    heapq.heappush(
-        frontier,
-        (h_start, start)
-    )
+    heapq.heappush(frontier, (h_start, start))
+
     while frontier:
         h, current = heapq.heappop(frontier)
         if current in visited:
             continue
         visited.add(current)
-        print("Exploration :", current, "| h =", round(h, 2)
-        )
+        print("Exploration :", current, "| h =", round(h, 2))
+
         if current == target:
             print("Cible trouvée !")
             return parent
         neighbors = get_neighbors(current)
+
         for neighbor_data in neighbors:
             neighbor = tuple(neighbor_data["node"])
+            
             if neighbor not in visited:
-                h_neighbor = distance(
-                    neighbor,
-                    target,
-                    metric
-                )
-                heapq.heappush(
-                    frontier,
-                    (h_neighbor, neighbor)
-                )
+                h_neighbor = distance(neighbor, target, metric)
+                heapq.heappush(frontier, (h_neighbor, neighbor))
                 if neighbor not in parent:
                     parent[neighbor] = current
     return None
